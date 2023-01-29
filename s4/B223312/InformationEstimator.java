@@ -51,9 +51,9 @@ public class InformationEstimator implements InformationEstimatorInterface {
         // 配列 dp[i] := target[0; i] までの解
         // 計算 dp[j] := min(dp[i] + iq(target[i; j]) | 0 <= i < j)
         // 最終的な解 = dp[targetLength]
-        // iq の計算に \Theta(\log(N))
+        // iq の計算に \Theta(N\log(N))
         // dp 配列の計算に \Theta(N^2) かかるので
-        // 全体の計算量は \Theta(N^2\log(N))
+        // 全体の計算量は \Theta(N^3\log(N))
 
         double[] dp = new double[targetLength + 1];
         dp[0] = 0;

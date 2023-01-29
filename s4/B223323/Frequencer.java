@@ -29,7 +29,7 @@ public class Frequencer implements FrequencerInterface{
     //ソートアルゴリズムの選択閾値
     //space.length < threshold の時は挿入ソート
     //space.length >= threshold の時はクイックソート
-    int threshold = 14;
+    private static final int threshold = 14;
 
     // The variable, "suffixArray" is the sorted array of all suffixes of mySpace.                                    
     // Each suffix is expressed by a integer, which is the starting position in mySpace. 
@@ -99,7 +99,7 @@ public class Frequencer implements FrequencerInterface{
         qsort(i0, iN, depth);
     }
 
-    private void qsort(int i0, int iN, int d) {
+    private final void qsort(int i0, int iN, int d) {
         int N = iN - i0;
         if (N < threshold) { isort(i0, iN); return; }
         int pivot = pseudoMedian(N, i0, d);

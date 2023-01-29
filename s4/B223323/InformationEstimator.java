@@ -26,10 +26,9 @@ public class InformationEstimator implements InformationEstimatorInterface{
     private static final int INT_MAX = Integer.MAX_VALUE;
     private static final double DOUBLE_MAX = Double.MAX_VALUE;
 
-    public final int INITIAL_MAX_TARGET_LEN = 10;                  //memoの初期サイズがこの値で決まる
     private double C1 = 0;                                         //log10(mySpace.length)
     private int len;                                               //target.length
-    private int max_target_len = INITIAL_MAX_TARGET_LEN;           //memoのサイズを管理
+    private int max_target_len = 0;                                //memoのサイズを管理
 
     /* ある長さまでで最小のfreqの総積とその時の長さを保持する。
      * targetを"abc"とする 0~1 の各要素は以下のようになる。
@@ -42,7 +41,7 @@ public class InformationEstimator implements InformationEstimatorInterface{
      |  2 | 3 |          4                          |
      |  1 | 2 | 要素1が"ab"ならば0, "a" * "b"ならば1 |
      ------------------------------------------------*/
-    private int[] memo = new int[(INITIAL_MAX_TARGET_LEN << 1) - 1];
+    private int[] memo;
 
     // IQ: information quantity for a count,  -log2(count/sizeof(space))
     private final double iq(int freq) {

@@ -22,7 +22,8 @@ public class InformationEstimator implements InformationEstimatorInterface {
     // Code to test, *warning: This code is slow, and it lacks the required test
     byte[] myTarget; // data to compute its information quantity
     byte[] mySpace;  // Sample space to compute the probability
-    FrequencerInterface myFrequencer;  // Object for counting frequency
+    Frequencer myFrequencer;  // Object for counting frequency
+    // FrequencerInterface myFrequencer;  // Object for counting frequency
 
     private void showVariables() {
         for(int i=0; i< mySpace.length; i++) { System.out.write(mySpace[i]); }
@@ -82,6 +83,7 @@ public class InformationEstimator implements InformationEstimatorInterface {
             for(int end = start+1; end < myTarget.length+1; end++){
                 myFrequencer.setTarget(subBytes(myTarget, start, end));
                 freqs[start][end-1] = myFrequencer.frequency()/(double)mySpace.length;
+                // System.out.printf("freq %d\n", myFrequencer.frequency());
                 // これ以降もかならず0のため，break
                 if(freqs[start][end-1]==0) break;
             }
@@ -101,14 +103,18 @@ public class InformationEstimator implements InformationEstimatorInterface {
         // 表示
         if(debugMode) { 
             showVariables(); 
-            System.out.printf("length=%d ", myTarget.length);
-            System.out.printf("%10.5f\n", min_iq);
+            System.out.printf("length=%d \n", myTarget.length);
+            // System.out.printf("like freq %10.5f\n", freqs[0][myTarget.length-1]);
+            System.out.printf("miniq %10.5f\n", min_iq);
+            System.out.println("~ dp table ~");
             for (int i = 0; i < myTarget.length; i++){
                 for (int j = 0; j < myTarget.length; j++){
                     System.out.printf("%.3f ", freqs[i][j]);
                 }
                 System.out.println();
             }
+            // System.out.println("~ suffixArray ~");
+            // myFrequencer.printSuffixArray();
         }
         return min_iq;
     }
