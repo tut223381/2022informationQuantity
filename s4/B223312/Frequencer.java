@@ -1,6 +1,6 @@
-package s4.B223312; // Please modify to s4.Bnnnnnn, where nnnnnn is your student ID. 
+package s4.B223312;
 
-import java.lang.*;
+import java.util.Arrays;
 import s4.specification.*;
 
 /*
@@ -17,19 +17,18 @@ interface FrequencerInterface {  // This interface provides the design for frequ
 */
 
 public class Frequencer implements FrequencerInterface {
-    // Code to Test, *warning: This code contains intentional problem*
     static boolean debugMode = false;
     byte[] myTarget;
     byte[] mySpace;
 
-    @Override
-    public void setTarget(byte[] target) {
-        myTarget = target;
-    }
+    SuffixArray suffixArray;
 
-    @Override
     public void setSpace(byte[] space) {
         mySpace = space;
+        suffixArray = new SuffixArray(space);
+    }
+    public void setTarget(byte[] target) {
+        myTarget = target;
     }
 
     private void showVariables() {
@@ -42,52 +41,69 @@ public class Frequencer implements FrequencerInterface {
         }
         System.out.write(' ');
     }
+    public void printSuffixArray() {
+        suffixArray.printSuffixArray();
+    }
 
-    @Override
     public int frequency() {
-        int targetLength = myTarget.length;
-        int spaceLength = mySpace.length;
-        int count = 0;
+        if (myTarget == null || myTarget.length == 0) return -1;
+        if (mySpace == null) return 0;
+        
         if (debugMode) {
             showVariables();
         }
-        for (int start = 0; start < spaceLength - targetLength + 1; start++) { // Is it OK?
-            boolean abort = false;
-            for (int i = 0; i < targetLength; i++) {
-                if (myTarget[i] != mySpace[start + i]) {
-                    abort = true;
-                    break;
-                }
-            }
-            if (abort == false) {
-                count++;
-            }
-        }
-        if (debugMode) {
-            System.out.printf("%10d\n", count);
-        }
-        return count;
+
+        return subByteFrequency(0, myTarget.length);
     }
 
-    // I know that here is a potential problem in the declaration.
-    @Override
     public int subByteFrequency(int start, int length) {
-        // Not yet implemented, but it should be defined as specified.
-        return -1;
+        byte[] subByte = Arrays.copyOfRange(myTarget, start, length);
+        int first = suffixArray.searchLowerBound(subByte);
+        int last = suffixArray.searchUpperBound(subByte);
+        return last - first;
     }
 
     public static void main(String[] args) {
-        Frequencer myObject;
-        int freq;
-        // White box test, here.
-        debugMode = true;
-        try {
-            myObject = new Frequencer();
-            myObject.setSpace("Hi Ho Hi Ho".getBytes());
-            myObject.setTarget("H".getBytes());
-            freq = myObject.frequency();
-        } catch (Exception e) {
-            System.out.println("Exception occurred: STOP");
+        Frequencer frequencerObject;
+        try { // テストに使うのに推奨するmySpaceの文字は、"ABC", "CBA", "HHH", "Hi Ho Hi Ho".
+            frequencerObject = new Frequencer();
+            frequencerObject.setSpace("ABC".getBytes());
+            frequencerObject.printSuffixArray();
+            frequencerObject = new Frequencer();
+            frequencerObject.setSpace("CBA".getBytes());
+            frequencerObject.printSuffixArray();
+            frequencerObject = new Frequencer();
+            frequencerObject.setSpace("HHH".getBytes());
+            frequencerObject.printSuffixArray();
+            frequencerObject = new Frequencer();
+            frequencerObject.setSpace("Hi Ho Hi Ho".getBytes());
+            frequencerObject.printSuffixArray();
+            /* Example from "Hi Ho Hi Ho"    
+               0: Hi Ho                      
+               1: Ho                         
+               2: Ho Hi Ho                   
+               3:Hi Ho                       
+               4:Hi Ho Hi Ho                 
+               5:Ho                          
+               6:Ho Hi Ho
+               7:i Ho                        
+               8:i Ho Hi Ho                  
+               9:o                           
+              10:o Hi Ho                     
+            */
+
+            frequencerObject.setTarget("H".getBytes());
+            int first = frequencerObject.suffixArray.searchLowerBound(frequencerObject.myTarget);
+            int last = frequencerObject.suffixArray.searchUpperBound(frequencerObject.myTarget);
+            System.out.print("Search[" + first + ", " + last + ") ");
+            if (4 == first && 8 == last) { System.out.println("OK"); } else {System.out.println("WRONG"); }
+
+            int result = frequencerObject.frequency();
+            System.out.print("Freq = "+ result+" ");
+            if(4 == result) { System.out.println("OK"); } else {System.out.println("WRONG"); }
+        }
+        catch(Exception e) {
+            System.out.println("STOP");
         }
     }
 }

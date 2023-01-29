@@ -47,6 +47,11 @@ public class InformationEstimator implements InformationEstimatorInterface {
         // return  - Math.log2((double)freq/(double)mySpace.length);
     }
 
+    double iq2(double x) {
+        return  - Math.log10(x) / Math.log10((double)2.0);
+        // return  - Math.log2((double)freq/(double)mySpace.length);
+    }
+
     @Override
     public void setTarget(byte[] target) {
         myTarget = target;
@@ -61,59 +66,51 @@ public class InformationEstimator implements InformationEstimatorInterface {
 
     @Override
     public double estimation(){
+        // use slow の場合は slowEstimation を使用
         if(useSlow){
             return slowEstimation();
         }
-        if(debugMode) {
-            showVariables(); 
-            System.out.printf("length=%d ", myTarget.length);
-        }
-        // 全ての Frequency を予め計算する．
-        // O(N^2)
-        int[][] freqs = new int[myTarget.length][myTarget.length];
+        // 全ての Frequency/(double)mySpace.length を予め計算する．
+        /** (double)mySpace.length で割っている理由
+         * もととなる IQ の式だと log の足し算を行っているが，
+         * 何度も log を計算するのは遅くなる． log の中身を掛け算
+         * して，最後に log を取れば回数を減らすことができるため，
+         * 後の計算のために割っている
+         */ 
+        double[][] freqs = new double[myTarget.length][myTarget.length];
         for(int start = 0; start < myTarget.length; start++){
             for(int end = start+1; end < myTarget.length+1; end++){
                 myFrequencer.setTarget(subBytes(myTarget, start, end));
-                freqs[start][end-1] = myFrequencer.frequency();
+                freqs[start][end-1] = myFrequencer.frequency()/(double)mySpace.length;
                 // これ以降もかならず0のため，break
                 if(freqs[start][end-1]==0) break;
             }
         }
-        // 全ての Information Quantity IQ を計算する
-        // O(N^2)
-        // double[][] iqs = new double[myTarget.length][myTarget.length];
-        // for(int i = 0; i < myTarget.length; i++){
-        //     iqs[i][i] = freqs[i][i];
-        //     // iqs[i][i] = iq(freqs[i][i]);
-        // }
+        // 最終的に log を取る直前の中身を計算していく
         for(int i = 1; i < myTarget.length ; i++){
             for (int j = 0; j+i < myTarget.length; j++){
-                // iqs[j][j+i] = Math.min(
-                //     freqs[j][j+i], 
-                //     // iq(freqs[j][j+i]), 
-                //     iqs[j][j+i-1] + iqs[j+1][j+i]
-                // );
-                freqs[j][j+i] = Math.min(
+                // log の中身が最大となれば，外側が最小となるので，maxを取っている
+                freqs[j][j+i] = Math.max(
                     freqs[j][j+i], 
-                    // iq(freqs[j][j+i]), 
                     freqs[j][j+i-1]*freqs[j+1][j+i]
                 ); 
             }
         }
-        double min_iq = iq(freqs[0][myTarget.length-1]);
+        // 最小の情報量は行列の右上
+        double min_iq = iq2(freqs[0][myTarget.length-1]);
+        // 表示
         if(debugMode) { 
+            showVariables(); 
+            System.out.printf("length=%d ", myTarget.length);
             System.out.printf("%10.5f\n", min_iq);
-            // System.out.printf("%10.5f\n", iqs[0][myTarget.length-1]);
             for (int i = 0; i < myTarget.length; i++){
                 for (int j = 0; j < myTarget.length; j++){
-                    // System.out.printf("%10.2f ", iqs[i][j]);
-                    System.out.printf("%d ", freqs[i][j]);
+                    System.out.printf("%.3f ", freqs[i][j]);
                 }
                 System.out.println();
             }
         }
         return min_iq;
-        // return iqs[0][myTarget.length-1];
     }
 
     public double slowEstimation(){

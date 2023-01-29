@@ -90,7 +90,7 @@ public class Frequencer implements FrequencerInterface{
     }
 
     public void setSpace(byte[] space) { 
-        // suffixArrayの前処理は、setSpaceで定義せよ。
+        // suffixArrayの前処理は、setSpaceで定義する
         mySpace = space; 
         if(mySpace.length>0) spaceReady = true;
         // First, create unsorted suffix array.
@@ -143,10 +143,10 @@ public class Frequencer implements FrequencerInterface{
         if(targetReady == false) return -1;
         if(spaceReady == false) return 0;
         return subByteFrequency(0, myTarget.length);
+        // return slowSubByteFrequency(0, myTarget.length);
     }
 
     // 今回の演習では，myTargetを含む頭に含むsuffixの数を知りたいというもの．
-    // targetCompareが，i,j,k を引数に取り，一般的な表現をされているが，実際に targetCompareに渡される引数は i, start, end だと思われる
     public int slowSubByteFrequency(int start, int end){
         int spaceLength = mySpace.length;                      
         int count = 0;                                        
@@ -292,9 +292,6 @@ public class Frequencer implements FrequencerInterface{
         int e = this.suffixArray.length;
 
         int cmp;
-        // System.out.println("StartIndex"+" "+s+" "+e);
-        // System.out.println(c);
-        // while (!((s == c) || (c == e))){
         while (!(e == c)){
             cmp = this.targetCompare(c, start, end);
             // subByteEndIndexとの違いはこの条件式
@@ -305,7 +302,6 @@ public class Frequencer implements FrequencerInterface{
                 s = c;
                 c = (e + c + 1)/2;
             }
-            // System.out.println(c);
         }
         return c;
     }
@@ -440,9 +436,9 @@ public class Frequencer implements FrequencerInterface{
 
             // H のみの場合
             frequencerObject = new Frequencer();
-            frequencerObject.setSpace("H".getBytes());
+            frequencerObject.setSpace("HHHH".getBytes());
             frequencerObject.printSuffixArray();
-            frequencerObject.setTarget("H".getBytes());
+            frequencerObject.setTarget("HH".getBytes());
             result = frequencerObject.frequency();
             System.out.print("Freq = "+ result+" ");
             true_result = frequencerObject.slowSubByteFrequency(

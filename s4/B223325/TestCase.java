@@ -69,11 +69,10 @@ public class TestCase {
 			System.out.println("result : " + result);
 			assert result == null : result;
 
-			// 「spaceを重複して走査しないようにする変更」に対するテスト
 			result = test(
 				"HHH HHH HHHH",
 				"HH",
-				4
+				7
 			);
 			assert result == null : result;
 

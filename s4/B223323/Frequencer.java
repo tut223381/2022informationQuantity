@@ -26,7 +26,9 @@ public class Frequencer implements FrequencerInterface{
 
     int []  suffixArray; // Suffix Arrayの実装に使うデータの型をint []とせよ。
 
-    int compcount = 0;
+    //ソートアルゴリズムの選択閾値
+    //space.length < threshold の時は挿入ソート
+    //space.length >= threshold の時はクイックソート
     int threshold = 14;
 
     // The variable, "suffixArray" is the sorted array of all suffixes of mySpace.                                    
@@ -38,7 +40,7 @@ public class Frequencer implements FrequencerInterface{
     // この関数は、デバッグに使ってもよい。mainから実行するときにも使ってよい。
     // リポジトリにpushするときには、mainメッソド以外からは呼ばれないようにせよ。
     //
-    private void printSuffixArray() {
+    private final void printSuffixArray() {
         if(spaceReady) {
             for(int i=0; i< mySpace.length; i++) {
                 int s = suffixArray[i];
@@ -51,7 +53,7 @@ public class Frequencer implements FrequencerInterface{
         }
     }
 
-    private int suffixCompare(int i, int j) {
+    private final int suffixCompare(int i, int j) {
         // suffixCompareはソートのための比較メソッドである。
         // 次のように定義せよ。
         //
@@ -89,11 +91,11 @@ public class Frequencer implements FrequencerInterface{
     }
 
     //参考：http://wwwa.pikara.ne.jp/okojisan/sort-killer/qsort-killer.html PQuickSort.java
-    private void qsort(int i0, int iN) {
+    private final void qsort(int i0, int iN) {
         int N = iN - i0;
         if (N < 2) return;
         int depth;
-        for (depth = 0; N > 0; N /= 2) depth++;
+        for (depth = 0; N > 0; N >>= 1) depth++;
         qsort(i0, iN, depth);
     }
 
@@ -114,19 +116,21 @@ public class Frequencer implements FrequencerInterface{
         if (iN - j > 1) qsort(j, iN, d);
     }
 
-    private int pseudoMedian(int n, int i, int d) {
-        if (n <= d) return suffixArray[i + n / 2];
+    /* pivotの選択 */
+    private final int pseudoMedian(int n, int i, int d) {
+        if (n <= d) return suffixArray[i + (n >> 1)];
         int m = n / 3;
         int x = pseudoMedian(m, i, d);
-        int y = pseudoMedian(n - 2*m, i + m, d);
+        int y = pseudoMedian(n - (m << 1), i + m, d);
         int z = pseudoMedian(m, i + n - m, d);
         return suffixCompare(x, y) < 0 ?
             (suffixCompare(y, z) < 0 ? y : (suffixCompare(z, x) < 0 ? x : z)) :
             (suffixCompare(z, y) < 0 ? y : (suffixCompare(x, z) < 0 ? x : z));
     }
 
-    private void isort(int i0, int iN) {
-        if (iN - i0 < 2) return;
+    /* 挿入ソート */
+    private final void isort(int i0, int iN) {
+        if (iN - i0 < 2) return; //ソートすべきものがない
         for (int i = i0 + 1; i < iN; i++) {
             int tmp = suffixArray[i];
             int j = i, k = i;
@@ -138,7 +142,7 @@ public class Frequencer implements FrequencerInterface{
         }
     }
 
-    public void setSpace(byte []space) { 
+    public final void setSpace(byte []space) { 
         // suffixArrayの前処理は、setSpaceで定義せよ。
         mySpace = space; if(space.length>0) spaceReady = true;
         // First, create unsorted suffix array.
@@ -163,48 +167,22 @@ public class Frequencer implements FrequencerInterface{
         //   suffixArray[ 1]= 1:BA
         //   suffixArray[ 2]= 0:CBA
         // のようになるべきである。
-
-        //クイックソート
         qsort(0, space.length);
-        //挿入ソート
-        /*
-        for (int i = 1; i < suffixArray.length; i++) {
-            int tmp = suffixArray[i];
-            int j = i, k = i;
-            if (suffixCompare(tmp, suffixArray[0]) < 0)
-                while (0 < j) { suffixArray[j] = suffixArray[--k]; j = k; }
-            else
-                while (suffixCompare(tmp, suffixArray[--k]) < 0) { suffixArray[j] = suffixArray[k]; j = k; }
-            suffixArray[j] = tmp;
-        }
-        //バブルソート
-        /*
-        for (int i = 0; i < suffixArray.length; i++) {
-            for (int j = 0; j < suffixArray.length; j++) {
-                if (suffixCompare(suffixArray[i], suffixArray[j]) == -1) {
-                    int tmp = suffixArray[i];
-                    suffixArray[i] = suffixArray[j];
-                    suffixArray[j] = tmp;
-                }
-            }
-        }
-        /**/
-
     }
 
     // ここから始まり、指定する範囲までは変更してはならないコードである。
 
-    public void setTarget(byte [] target) {
+    public final void setTarget(byte [] target) {
         myTarget = target; if(myTarget.length>0) targetReady = true;
     }
 
-    public int frequency() {
+    public final int frequency() {
         if(targetReady == false) return -1;
         if(spaceReady == false) return 0;
         return subByteFrequency(0, myTarget.length);
     }
 
-    public int subByteFrequency(int start, int end) {
+    public final int subByteFrequency(int start, int end) {
         // start, and end specify a string to search in myTarget,
         // if myTarget is "ABCD", 
         //     start=0, and end=1 means string "A".
@@ -230,7 +208,7 @@ public class Frequencer implements FrequencerInterface{
     }
     // 変更してはいけないコードはここまで。
 
-    public int slowsubByteFrequency(int start, int end) {
+    public final int slowsubByteFrequency(int start, int end) {
         int spaceLength = mySpace.length;                      
         int count = 0;                                        
         for(int offset = 0; offset< spaceLength - (end - start); offset++) {
@@ -243,7 +221,7 @@ public class Frequencer implements FrequencerInterface{
         return count;
     }
 
-    private int targetCompare(int i, int j, int k) {
+    private final int targetCompare(int i, int j, int k) {
         // subByteStartIndexとsubByteEndIndexを定義するときに使う比較関数。
         // 次のように定義せよ。
         // suffix_i is a string starting with the position i in "byte [] mySpace".
@@ -293,20 +271,7 @@ public class Frequencer implements FrequencerInterface{
         return mySpace[i] > myTarget[j] ? 1 : -1; //比較
     }
 
-    private int slowSubByteStartIndex(int start,int end) {
-        int i = 0, len = suffixArray.length;
-        while (i < len && targetCompare(suffixArray[i], start, end) == -1) ++i;
-        return i;
-    }
-
-    private int slowSubByteEndIndex(int start,int end) {
-        int i = suffixArray.length - 1;
-        while (i > 0 && targetCompare(suffixArray[i], start, end) == 1) --i;
-        return i + 1;
-    }
-
-
-    private int subByteStartIndex(int start, int end) {
+    private final int subByteStartIndex(int start, int end) {
         //suffix arrayのなかで、目的の文字列の出現が始まる位置を求めるメソッド
         // 以下のように定義せよ。
         // The meaning of start and end is the same as subByteFrequency.
@@ -350,7 +315,7 @@ public class Frequencer implements FrequencerInterface{
         return s;
     }
 
-    private int subByteEndIndex(int start, int end) {
+    private final int subByteEndIndex(int start, int end) {
         //suffix arrayのなかで、目的の文字列の出現しなくなる場所を求めるメソッド
         // 以下のように定義せよ。
         // The meaning of start and end is the same as subByteFrequency.
@@ -398,6 +363,8 @@ public class Frequencer implements FrequencerInterface{
         // return 0;
     }
 
+    /*
+    //DEBUG用
     private static void print(int ...i) {
         print("", i);
     }
@@ -408,7 +375,7 @@ public class Frequencer implements FrequencerInterface{
             System.out.print(' ');
         }
         System.out.println();
-    }
+    }*/
 
     // Suffix Arrayを使ったプログラムのホワイトテストは、
     // privateなメソッドとフィールドをアクセスすることが必要なので、
