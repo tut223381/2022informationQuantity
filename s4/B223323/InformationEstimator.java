@@ -1,66 +1,142 @@
 package s4.B223323; // Please modify to s4.Bnnnnnn, where nnnnnn is your student ID. 
 import java.lang.*;
+
 import s4.specification.*;
 
 /* What is imported from s4.specification
 package s4.specification;
-public interface InformationEstimatorInterface {
-    void setTarget(byte target[]);  // set the data for computing the information quantities
-    void setSpace(byte space[]);  // set data for sample space to computer probability
-    double estimation();  // It returns 0.0 when the target is not set or Target's length is zero;
-    // It returns Double.MAX_VALUE, when the true value is infinite, or space is not set.
-    // The behavior is undefined, if the true value is finete but larger than Double.MAX_VALUE.
-    // Note that this happens only when the space is unreasonably large. We will encounter other problem anyway.
-    // Otherwise, estimation of information quantity,
-}
+public interface InformationEstimatorInterface{
+    void setTarget(byte target[]); // set the data for computing the information quantities
+    void setSpace(byte space[]); // set data for sample space to computer probability
+    double estimation(); // It returns 0.0 when the target is not set or Target's length is zero;
+// It returns Double.MAX_VALUE, when the true value is infinite, or space is not set.
+// The behavior is undefined, if the true value is finete but larger than Double.MAX_VALUE.
+// Note that this happens only when the space is unreasonably large. We will encounter other problem anyway.
+// Otherwise, estimation of information quantity, 
+}                        
 */
 
+public class InformationEstimator implements InformationEstimatorInterface{
+    private final FrequencerInterface myFrequencer = new Frequencer();  // Object for counting frequency
+    private boolean mySpaceNotReady = true;
+    private boolean myTargetNotReady = true;
 
-public class InformationEstimator implements InformationEstimatorInterface {
-    static boolean debugMode = false;
-    // Code to test, *warning: This code is slow, and it lacks the required test
-    byte[] myTarget; // data to compute its information quantity
-    byte[] mySpace;  // Sample space to compute the probability
-    FrequencerInterface myFrequencer;  // Object for counting frequency
+    //定数群
+    private static final double C0 = 1/Math.log10(2d);
+    private static final int INT_MAX = Integer.MAX_VALUE;
+    private static final double DOUBLE_MAX = Double.MAX_VALUE;
 
-    private void showVariables() {
-	for(int i=0; i< mySpace.length; i++) { System.out.write(mySpace[i]); }
-	System.out.write(' ');
-	for(int i=0; i< myTarget.length; i++) { System.out.write(myTarget[i]); }
-	System.out.write(' ');
+    private double C1 = 0;                                         //log10(mySpace.length)
+    private int len;                                               //target.length
+    private int max_target_len = 0;                                //memoのサイズを管理
+
+    /* ある長さまでで最小のfreqの総積とその時の長さを保持する。
+     * targetを"abc"とする 0~1 の各要素は以下のようになる。
+     ------------------------------------------------------
+     |     0     |                   1                    |
+     | freq("a") | min(freq("ab"), freq("a") * freq("b")) |
+     ------------------------------------------------------
+     * 要素2(len-1)は定数、3,4(len ~ 2*len-1)の各要素は要素1(1~len-2)を求める際にfreqを計算した回数+1である。
+     ------------------------------------------------
+     |  2 | 3 |          4                          |
+     |  1 | 2 | 要素1が"ab"ならば0, "a" * "b"ならば1 |
+     ------------------------------------------------*/
+    private int[] memo;
+
+    // IQ: information quantity for a count,  -log2(count/sizeof(space))
+    private final double iq(int freq) {
+        return (-Math.log10((double) freq) + C1) / Math.log10(2d);
     }
 
-    byte[] subBytes(byte[] x, int start, int end) {
-        // corresponding to substring of String for byte[],
-        // It is not implement in class library because internal structure of byte[] requires copy.
-        byte[] result = new byte[end - start];
-        for(int i = 0; i<end - start; i++) { result[i] = x[start + i]; };
-        return result;
+    public final void setTarget(byte [] target) { 
+        len = target.length; //このクラスで直接必要なtargetの情報はこれだけ
+        if (len == 0) {
+            myTargetNotReady = true; 
+        } else {
+            myTargetNotReady = false;
+            myFrequencer.setTarget(target); //targetの内容はmyFrequencerで処理する。
+            if (max_target_len < len) { //targetの長さがmax_target_lenより長い場合はmemoサイズを拡張する。
+                max_target_len = len;
+                memo = new int[(len << 1) - 1];
+            }
+        }
+    }
+    public final void setSpace(byte []space) {
+        mySpaceNotReady = space.length == 0;
+        if (mySpaceNotReady) return;
+        myFrequencer.setSpace(space);
+        C1 = Math.log10((double) space.length);
     }
 
-    // IQ: information quantity for a count, -log2(count/sizeof(space))
-    double iq(int freq) {
-        return  - Math.log10((double) freq / (double) mySpace.length)/ Math.log10((double) 2.0);
+    /*
+     * iqの計算式を変更している
+     * 注:Σは総和,Πは総積を表す
+     * Σ(-log(freq/mySpace.len) / log(2d))
+     *  ↓
+     * Σ((log(mySpace.len) - log(freq)) / log(2d))
+     *  ↓
+     * (n * log(mySpace.len) - log(Π(freq))) / log(2d)
+     * nはfreqを掛ける回数。
+     */
+    public final double estimation() {
+        if (myTargetNotReady) return 0d; // returns 0.0 when the target is not set or Target's length is zero;
+        if (mySpaceNotReady) return DOUBLE_MAX; // It returns Double.MAX_VALUE, when the true value is infinite, or the space is not set.
+
+        int min = myFrequencer.subByteFrequency(0, 1);
+        if (len == 1) return (min == 0) ? DOUBLE_MAX : (C1 - Math.log10(min)) * C0; //targetの長さが1の場合はここで判定。
+
+        int end = 2, start = 1, mp = 1;
+        
+        //memoの初期化(他の値は使用される前に上書きされる)
+        memo[len - 1] = 1;
+        memo[len] = 2;
+        memo[0] = (min == 0) ? INT_MAX: min;
+
+        for (;;) { // while(true)
+            //final int mp = end - 1;
+            //int start = mp;
+            
+            min = myFrequencer.subByteFrequency(0, end); //メモから足す必要がないためループ外で処理
+            int p = -1;
+            if (min == 0) min = INT_MAX;
+            
+            do {
+                //targetをendまでとしたときのfreqの総積が最も小さくなるものをもとめる。
+                //minはmin(freq("abc"), freq("a") * freq("bc"), freq("ab") * freq("c"))
+                //pはその時の使ったmemoのアドレス(memo[p+len]がfreqを掛けた回数を示す)
+                int freq = myFrequencer.subByteFrequency(start, end);
+                if (freq == 0) break;
+                int iq = freq * memo[--start];
+                if (iq < min) { min = iq; p = start; }
+            } while (start > 0);
+
+            if (end == len)
+                /*
+                 * iq = (n * log(mySpace.len) - log(Π(freq))) / log(2d)
+                 * C0 = 1/log(2d)
+                 * C1 = log(mySpace.len)
+                 * memo[p + len] = n
+                 * min = Π(freq)
+                 */
+                return min == INT_MAX ? DOUBLE_MAX: (C1 * memo[p + len] - Math.log10((double) min)) * C0;
+
+            //メモの更新
+            memo[mp + len] = memo[p + len] + 1;
+            memo[mp] = min;
+
+            mp = start = end++;
+        }
     }
 
-    @Override
-    public void setTarget(byte[] target) {
-        myTarget = target;
-    }
+    private final double slowEstimation(){
+        if (myTargetNotReady) return 0d;
+        if (mySpaceNotReady) return DOUBLE_MAX;
 
-    @Override
-    public void setSpace(byte[] space) {
-        myFrequencer = new Frequencer();
-        mySpace = space; myFrequencer.setSpace(space);
-    }
-
-    @Override
-    public double estimation(){
-        boolean [] partition = new boolean[myTarget.length+1];
-        int np = 1<<(myTarget.length-1);
+        boolean [] partition = new boolean[len+1];
+        int np;
+        np = 1<<(len-1);
+        // System.out.println("np="+np+" length="+len);
         double value = Double.MAX_VALUE; // value = mininimum of each "value1".
-	if(debugMode) { showVariables(); }
-        if(debugMode) { System.out.printf("np=%d length=%d ", np, +myTarget.length); }
 
         for(int p=0; p<np; p++) { // There are 2^(n-1) kinds of partitions.
             // binary representation of p forms partition.
@@ -68,26 +144,27 @@ public class InformationEstimator implements InformationEstimatorInterface {
             // a b c d e f g   : myTarget
             // T F T F F T F T : partition:
             partition[0] = true; // I know that this is not needed, but..
-            for(int i=0; i<myTarget.length -1;i++) {
-                partition[i+1] = (0 !=((1<<i) & p));
+            for(int i=0; i<len -1;i++) {
+            partition[i+1] = (0 !=((1<<i) & p));
             }
-            partition[myTarget.length] = true;
+            partition[len] = true;
 
             // Compute Information Quantity for the partition, in "value1"
             // value1 = IQ(#"ab")+IQ(#"cde")+IQ(#"fg") for the above example
             double value1 = (double) 0.0;
             int end = 0;
             int start = end;
-            while(start<myTarget.length) {
+            while(start<len) {
                 // System.out.write(myTarget[end]);
-                end++;;
-                while(partition[end] == false) {
+                end++;
+                while(partition[end] == false) { 
                     // System.out.write(myTarget[end]);
                     end++;
                 }
                 // System.out.print("("+start+","+end+")");
-                myFrequencer.setTarget(subBytes(myTarget, start, end));
-                value1 = value1 + iq(myFrequencer.frequency());
+                int freq = myFrequencer.subByteFrequency(start, end);
+                value1 = freq == 0 ? Double.MAX_VALUE : value1 + iq(freq);
+                
                 start = end;
             }
             // System.out.println(" "+ value1);
@@ -95,24 +172,47 @@ public class InformationEstimator implements InformationEstimatorInterface {
             // Get the minimal value in "value"
             if(value1 < value) value = value1;
         }
-	if(debugMode) { System.out.printf("%10.5f\n", value); }
         return value;
+    }
+
+    private final double check() {
+        double fast = estimation();
+        double slow = slowEstimation();
+        if (Math.abs(fast - slow) > 1e-15) System.out.println("ERROR: WRONG\nfast:" + fast + "\nslow:" + slow);
+        return fast;
     }
 
     public static void main(String[] args) {
         InformationEstimator myObject;
         double value;
-	debugMode = true;
         myObject = new InformationEstimator();
         myObject.setSpace("3210321001230123".getBytes());
         myObject.setTarget("0".getBytes());
-        value = myObject.estimation();
+        value = myObject.check();
+        System.out.println(">0 "+value);
         myObject.setTarget("01".getBytes());
-        value = myObject.estimation();
+        value = myObject.check();
+        System.out.println(">01 "+value);
         myObject.setTarget("0123".getBytes());
-        value = myObject.estimation();
+        value = myObject.check();
+        System.out.println(">0123 "+value);
         myObject.setTarget("00".getBytes());
-        value = myObject.estimation();
+        value = myObject.check();
+        System.out.println(">00 "+value);
+        myObject.setTarget("4".getBytes());
+        value = myObject.check();
+        System.out.println(">4 "+value);
+        myObject.setTarget("321".getBytes());
+        value = myObject.check();
+        System.out.println(">321 "+value);
+        myObject.setTarget("3210".getBytes());
+        value = myObject.check();
+        System.out.println(">3210 "+value);
+        myObject.setTarget("32121".getBytes());
+        value = myObject.check();
+        System.out.println(">32121 "+value);
+        myObject.setTarget("31313131".getBytes());
+        value = myObject.check();
+        System.out.println(">31313131 "+value);
     }
 }
-
